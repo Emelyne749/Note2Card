@@ -24,7 +24,7 @@ public class FlashcardService {
     private String apiKey;
 
     private final WebClient webClient = WebClient.builder()
-            .baseUrl("https://api.anthropic.com")
+            .baseUrl("https://generativelanguage.googleapis.com")
             .build();
 
     public FlashcardService(FlashcardRepository flashcardRepository,
@@ -39,38 +39,48 @@ public class FlashcardService {
 
         String prompt = """
                 You are a study assistant. Generate 5 flashcards from the notes below.
-                Return ONLY a JSON array with no extra text, like this:
+                Return ONLY a JSON array with no extra text, no markdown, no backticks, like this:
                 [{"question":"...","answer":"..."},...]
                 
                 Notes:
                 """ + note.getContent();
 
         Map<String, Object> requestBody = Map.of(
-                "model", "claude-sonnet-4-20250514",
-                "max_tokens", 1000,
-                "messages", List.of(Map.of("role", "user", "content", prompt))
+                "contents", List.of(
+                        Map.of("parts", List.of(
+                                Map.of("text", prompt)
+                        ))
+                )
         );
 
         String response = webClient.post()
-                .uri("/v1/messages")
-                .header("x-api-key", apiKey)
-                .header("anthropic-version", "2023-06-01")
+                .uri(uriBuilder -> uriBuilder
+                        .path("/v1beta/models/gemini-2.0-flash:generateContent")
+                        .queryParam("key", apiKey)
+                        .build())
                 .header("Content-Type", "application/json")
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(res -> {
-                    List<Map<String, Object>> content =
-                            (List<Map<String, Object>>) res.get("content");
-                    return (String) content.get(0).get("text");
+                    List<Map<String, Object>> candidates =
+                            (List<Map<String, Object>>) res.get("candidates");
+                    Map<String, Object> content =
+                            (Map<String, Object>) candidates.get(0).get("content");
+                    List<Map<String, Object>> parts =
+                            (List<Map<String, Object>>) content.get("parts");
+                    return (String) parts.get(0).get("text");
                 })
                 .block();
 
         List<Flashcard> flashcards = new ArrayList<>();
         try {
+            String cleaned = response.replaceAll("```json", "")
+                    .replaceAll("```", "")
+                    .trim();
             ObjectMapper mapper = new ObjectMapper();
             List<Map<String, String>> pairs = mapper.readValue(
-                    response, new TypeReference<>() {}
+                    cleaned, new TypeReference<>() {}
             );
             for (Map<String, String> pair : pairs) {
                 Flashcard fc = new Flashcard();
