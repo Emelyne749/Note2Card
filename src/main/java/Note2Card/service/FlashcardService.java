@@ -20,7 +20,7 @@ public class FlashcardService {
     private final FlashcardRepository flashcardRepository;
     private final NoteRepository noteRepository;
 
-    @Value("${anthropic.api.key}")
+    @Value("${gemini.api.key}")
     private String apiKey;
 
     private final WebClient webClient = WebClient.builder()
