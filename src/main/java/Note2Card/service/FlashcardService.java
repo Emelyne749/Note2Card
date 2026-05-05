@@ -20,11 +20,11 @@ public class FlashcardService {
     private final FlashcardRepository flashcardRepository;
     private final NoteRepository noteRepository;
 
-    @Value("${gemini.api.key}")
+    @Value("${openrouter.api.key}")
     private String apiKey;
 
     private final WebClient webClient = WebClient.builder()
-            .baseUrl("https://generativelanguage.googleapis.com")
+            .baseUrl("https://openrouter.ai/api/v1")
             .build();
 
     public FlashcardService(FlashcardRepository flashcardRepository,
@@ -46,30 +46,27 @@ public class FlashcardService {
                 """ + note.getContent();
 
         Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                        Map.of("parts", List.of(
-                                Map.of("text", prompt)
-                        ))
+                "model", "openrouter/free",
+                "max_tokens", 1000,
+                "messages", List.of(
+                        Map.of("role", "user", "content", prompt)
                 )
         );
-
         String response = webClient.post()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/v1beta/models/gemini-2.0-flash:generateContent")
-                        .queryParam("key", apiKey)
-                        .build())
+                .uri("/chat/completions")
+                .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
+                .header("HTTP-Referer", "http://localhost:8080")
+                .header("X-Title", "Note2Card")
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(res -> {
-                    List<Map<String, Object>> candidates =
-                            (List<Map<String, Object>>) res.get("candidates");
-                    Map<String, Object> content =
-                            (Map<String, Object>) candidates.get(0).get("content");
-                    List<Map<String, Object>> parts =
-                            (List<Map<String, Object>>) content.get("parts");
-                    return (String) parts.get(0).get("text");
+                    List<Map<String, Object>> choices =
+                            (List<Map<String, Object>>) res.get("choices");
+                    Map<String, Object> message =
+                            (Map<String, Object>) choices.get(0).get("message");
+                    return (String) message.get("content");
                 })
                 .block();
 
