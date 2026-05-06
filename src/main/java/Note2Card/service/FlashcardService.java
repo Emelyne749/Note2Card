@@ -37,17 +37,38 @@ public class FlashcardService {
         Note note = noteRepository.findById(noteId)
                 .orElseThrow(() -> new RuntimeException("Note not found with id: " + noteId));
 
+        int pageCount = note.getContent().split("\n").length / 30;
+        int minCards = Math.max(5, pageCount / 2);
+
         String prompt = """
-                You are a study assistant. Generate 5 flashcards from the notes below.
-                Return ONLY a JSON array with no extra text, no markdown, no backticks, like this:
-                [{"question":"...","answer":"..."},...]
-                
-                Notes:
-                """ + note.getContent();
+        You are an expert study assistant and exam coach.
+        Generate flashcards from the study notes below.
+        
+        STRICT RULES:
+        - Generate AT LEAST %d flashcards
+        - Each flashcard question must be detailed, at least 2-3 lines
+        - Each flashcard answer must be detailed, at least 3-4 lines
+        - Format questions exactly like real exam questions
+        - Focus on the most recurring and important topics
+        - If past exam papers are provided below, match their exact question style and format
+        - Return ONLY a valid JSON array, no extra text, no markdown:
+        [{"question":"...","answer":"..."},...]
+        
+        STUDY NOTES:
+        %s
+        
+        %s
+        """.formatted(
+                minCards,
+                note.getContent(),
+                note.getPastPaper() != null && !note.getPastPaper().isEmpty()
+                        ? "PAST EXAM PAPERS (match this format for questions):\n" + note.getPastPaper()
+                        : ""
+        );
 
         Map<String, Object> requestBody = Map.of(
                 "model", "openrouter/free",
-                "max_tokens", 1000,
+                "max_tokens", 4096,
                 "messages", List.of(
                         Map.of("role", "user", "content", prompt)
                 )

@@ -8,6 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/flashcards")
+@CrossOrigin(origins = "http://localhost:5173")
 public class FlashcardController {
 
     private final FlashcardService flashcardService;
@@ -16,13 +17,11 @@ public class FlashcardController {
         this.flashcardService = flashcardService;
     }
 
-    // Generate flashcards from a note using AI
     @PostMapping("/generate/{noteId}")
     public List<Flashcard> generateFlashcards(@PathVariable Long noteId) {
         return flashcardService.generateFlashcards(noteId);
     }
 
-    // Get all flashcards for a specific note
     @GetMapping("/note/{noteId}")
     public List<Flashcard> getFlashcardsByNote(@PathVariable Long noteId) {
         return flashcardService.getFlashcardsByNote(noteId);

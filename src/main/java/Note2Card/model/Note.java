@@ -15,4 +15,7 @@ public class Note {
 
     @Column(columnDefinition = "TEXT")
     private String content;
+
+    @Column(columnDefinition = "TEXT")
+    private String pastPaper;
 }
